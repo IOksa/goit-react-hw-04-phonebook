@@ -1,4 +1,4 @@
-import React, {Component} from 'react';
+import React, {useState, useEffect} from 'react';
 import ContactForm from '../ContactForm/ContactForm';
 import { nanoid } from 'nanoid';
 import ContactsList from '../ContactsList/ContactsList';
@@ -7,37 +7,25 @@ import Container from '../Container/Container';
 import { ToastContainer, toast } from 'react-toastify';
 import css from './App.module.css';
 import 'react-toastify/dist/ReactToastify.css';
+import useLocalStorage from 'hooks/useLocalStorage';
 
 const LS_KEY='contacts';
 
-class App extends Component{
-  state = {
-    contacts: [ ],
-    filter: '',
+const App=()=>{
+  //ленивая инициализация состояния - передаем ссылку на функцию, которая возвращает первоначальное значение - вызов только при первом рендере
+  //const [contacts, setContacts] = useState(()=>JSON.parse(window.localStorage.getItem(LS_KEY)) ?? [ ]);
 
-  }
+  const [contacts, setContacts] = useLocalStorage(LS_KEY, []);
+  const [filter, setFilter] = useState('');
 
-  componentDidMount(){
-    const contacts = localStorage.getItem(LS_KEY);
-    const parsedContacts = JSON.parse(contacts);
-
-    if (parsedContacts) {
-      this.setState({ contacts: parsedContacts });
-    }
-  }
-
-  componentDidUpdate(prevProps, prevState) {
-    const nextContacts = this.state.contacts;
-    const prevContacts = prevState.contacts;
-
-    if (nextContacts !== prevContacts) {
-        localStorage.setItem('contacts', JSON.stringify(nextContacts));
-    }
-
-  }
+  //уже не нужно, есть useLocalStorage
+  // useEffect(()=>{
+  //   window.localStorage.setItem(LS_KEY, JSON.stringify(contacts));
+    
+  // }, [contacts]);
 
 
-  addContact = ({name, number})=> {
+  const addContact = (name, number)=> {  
     const contact = {
       id: nanoid(),
       name,
@@ -45,25 +33,24 @@ class App extends Component{
 
     };
     const normalizedName = name.toLowerCase();
-    const isInContacts=this.state.contacts.findIndex(({name})=>name.toLowerCase()===normalizedName );
+    const isInContacts=contacts.findIndex(({name})=>name.toLowerCase()===normalizedName );
 
     if(isInContacts===-1){
-      this.setState(({ contacts }) => ({contacts: [ ...contacts, contact]}));
+      setContacts(prevState=>[ ...prevState, contact]);
     }
     else{
-      // alert(`${name} is already in contacts`);
       toast.error(`${name} is already in contacts`);
     }
    
 
   };
 
-  changeFilter = e => {
-    this.setState({ filter: e.currentTarget.value });
+  const changeFilter = (e) => {
+    setFilter(e.currentTarget.value);
+    
   };
 
-  getVisibleContacts = () => {
-    const { filter, contacts } = this.state;
+  const getVisibleContacts = () => {
     const normalizedFilter = filter.toLowerCase();
 
     return contacts.filter(contact =>
@@ -71,31 +58,26 @@ class App extends Component{
     );
   };
 
-  deleteContact = contactId => {
-    this.setState(prevState => ({
-      contacts: prevState.contacts.filter(contact => contact.id !== contactId),
-    }));
+  const deleteContact = (contactId) => {
+    setContacts(prevState => prevState.filter(contact => contact.id !== contactId));
+  
   };
 
+  const visibleContacts = getVisibleContacts();
 
-
-  render(){
-    const {filter } = this.state;
-    const visibleContacts = this.getVisibleContacts();
-
-    return(
+  return(
     <>
     <Container>
     
     <h1 className={css.phonebook__title}>Phonebook</h1>
     <ToastContainer autoClose="3000" theme="colored"/>
-    <ContactForm onSubmit={this.addContact}/>
-    <Filter value={filter} onChange={this.changeFilter} />
-    <ContactsList contacts={visibleContacts} onDeleteContact={this.deleteContact}/>
+    <ContactForm onSubmit={addContact}/>
+    <Filter value={filter} onChange={changeFilter} />
+    <ContactsList contacts={visibleContacts} onDeleteContact={deleteContact}/>
     </Container>
     </>
-    );
-  }
+  );
+  
 }
 
 export default App;
